@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI News Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FAFAFA;
+      --card-bg: #FFFFFF;
+      --text-primary: #1A1A1A;
+      --text-secondary: #555555;
+      --text-muted: #888888;
+      --accent: #2563EB;
+      --accent-light: #EFF6FF;
+      --border: #E5E7EB;
+      --importance-high: #DC2626;
+      --importance-high-bg: #FEF2F2;
+      --importance-mid: #D97706;
+      --importance-mid-bg: #FFFBEB;
+      --hint-bg: #F0FDF4;
+      --hint-border: #22C55E;
+      --radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    /* ── Header ── */
+    .header {
+      margin-bottom: 36px;
+    }
+
+    .header-date {
+      font-size: 13px;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* ── Article Card ── */
+    .article-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      margin-bottom: 24px;
+    }
+
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .badge-importance {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-high {
+      color: var(--importance-high);
+      background: var(--importance-high-bg);
+    }
+
+    .badge-mid {
+      color: var(--importance-mid);
+      background: var(--importance-mid-bg);
+    }
+
+    .article-source {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .article-title {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .article-summary {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.9;
+      margin-bottom: 24px;
+    }
+
+    /* ── Hint Box ── */
+    .hint-box {
+      background: var(--hint-bg);
+      border-left: 4px solid var(--hint-border);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 20px 22px;
+      margin-bottom: 20px;
+    }
+
+    .hint-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--hint-border);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hint-text {
+      font-size: 14.5px;
+      color: var(--text-secondary);
+      line-height: 1.9;
+    }
+
+    /* ── Link ── */
+    .article-link {
+      display: inline-block;
+      font-size: 14px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      padding: 8px 0;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    .article-link:hover {
+      border-bottom-color: var(--accent);
+    }
+
+    .article-link::after {
+      content: ' →';
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 16px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      .container {
+        padding: 24px 16px 48px;
+      }
+      .article-card {
+        padding: 22px 18px;
+      }
+      .header-title {
+        font-size: 20px;
+      }
+      .article-title {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- ── Header ── -->
+    <div class="header">
+      <div class="header-date">{{ report_date }}</div>
+      <div class="header-title">📋 AI活用ニュースレポート</div>
+      <div class="header-subtitle">今回のピックアップ：{{ articles|length }}件</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ── Articles ── -->
+    {% for article in articles %}
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="badge-importance {{ article.importance_class }}">{{ article.importance_label }}</span>
+        <span class="article-source">{{ article.source }}{% if article.published %}｜{{ article.published }}{% endif %}</span>
+      </div>
+
+      <h2 class="article-title">{{ article.title }}</h2>
+
+      <div class="section-label">要約</div>
+      <p class="article-summary">{{ article.summary }}</p>
+
+      <div class="hint-box">
+        <div class="hint-label">💡 研修への活用ヒント</div>
+        <p class="hint-text">{{ article.hint }}</p>
+      </div>
+
+      <a class="article-link" href="{{ article.url }}" target="_blank" rel="noopener noreferrer">元記事を読む</a>
+    </div>
+    {% endfor %}
+
+    <!-- ── Footer ── -->
+    <div class="footer">
+      <p>ソース：Google News RSS ／ AI分析による自動生成レポート</p>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,100 @@
+name: AI News Report Generator
+
+on:
+  schedule:
+    # JST 9:00 月曜・木曜 = UTC 0:00 月曜・木曜
+    - cron: '0 0 * * 1,4'
+  workflow_dispatch:
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compute Surge domain
+        run: |
+          DOMAIN="ai-news-report-$(TZ=Asia/Tokyo date +%Y%m%d).surge.sh"
+          echo "SURGE_DOMAIN=$DOMAIN" >> "$GITHUB_ENV"
+
+      - name: Generate report
+        id: generate
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SURGE_DOMAIN: ${{ env.SURGE_DOMAIN }}
+        run: python scripts/generate_report.py
+
+      - name: Commit seen_articles.json
+        if: steps.generate.outputs.has_articles == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_articles.json
+          git diff --cached --quiet || git commit -m "chore: update seen_articles.json [skip ci]"
+          git push
+
+      - name: Deploy to Surge
+        if: steps.generate.outputs.has_articles == 'true'
+        run: |
+          npm install -g surge
+          surge dist/ \
+            --domain "${{ steps.generate.outputs.surge_domain }}" \
+            --token "${{ secrets.SURGE_TOKEN }}"
+
+      - name: Send LINE notification
+        if: steps.generate.outputs.has_articles == 'true'
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          REPORT_DATE: ${{ steps.generate.outputs.report_date }}
+          ARTICLE_COUNT: ${{ steps.generate.outputs.article_count }}
+          SURGE_URL: https://${{ steps.generate.outputs.surge_domain }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, urllib.request
+
+          token   = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
+          user_id = os.environ["LINE_USER_ID"]
+          date    = os.environ["REPORT_DATE"]
+          count   = os.environ["ARTICLE_COUNT"]
+          url     = os.environ["SURGE_URL"]
+
+          msg = (
+              f"📋 AIニュースレポート\n"
+              f"{date}版を公開しました。\n\n"
+              f"今回のピックアップ：{count}件\n\n"
+              f"{url}"
+          )
+          payload = json.dumps({
+              "to": user_id,
+              "messages": [{"type": "text", "text": msg}]
+          }).encode("utf-8")
+
+          req = urllib.request.Request(
+              "https://api.line.me/v2/bot/message/push",
+              data=payload,
+              headers={
+                  "Content-Type": "application/json",
+                  "Authorization": f"Bearer {token}",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(req) as res:
+              print(f"LINE 送信完了: HTTP {res.status}")
+          EOF
+
+      - name: No new articles
+        if: steps.generate.outputs.has_articles == 'false'
+        run: echo "新規記事なし。今回はレポートをスキップしました。"

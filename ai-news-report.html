@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI News Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FAFAFA;
+      --card-bg: #FFFFFF;
+      --text-primary: #1A1A1A;
+      --text-secondary: #555555;
+      --text-muted: #888888;
+      --accent: #2563EB;
+      --accent-light: #EFF6FF;
+      --border: #E5E7EB;
+      --importance-high: #DC2626;
+      --importance-high-bg: #FEF2F2;
+      --importance-mid: #D97706;
+      --importance-mid-bg: #FFFBEB;
+      --hint-bg: #F0FDF4;
+      --hint-border: #22C55E;
+      --radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    /* ── Header ── */
+    .header {
+      margin-bottom: 36px;
+    }
+
+    .header-date {
+      font-size: 13px;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* ── Article Card ── */
+    .article-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      margin-bottom: 24px;
+    }
+
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .badge-importance {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-high {
+      color: var(--importance-high);
+      background: var(--importance-high-bg);
+    }
+
+    .badge-mid {
+      color: var(--importance-mid);
+      background: var(--importance-mid-bg);
+    }
+
+    .article-source {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .article-title {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .article-summary {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.9;
+      margin-bottom: 24px;
+    }
+
+    /* ── Hint Box ── */
+    .hint-box {
+      background: var(--hint-bg);
+      border-left: 4px solid var(--hint-border);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 20px 22px;
+      margin-bottom: 20px;
+    }
+
+    .hint-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--hint-border);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hint-text {
+      font-size: 14.5px;
+      color: var(--text-secondary);
+      line-height: 1.9;
+    }
+
+    /* ── Link ── */
+    .article-link {
+      display: inline-block;
+      font-size: 14px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      padding: 8px 0;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    .article-link:hover {
+      border-bottom-color: var(--accent);
+    }
+
+    .article-link::after {
+      content: ' →';
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 16px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      .container {
+        padding: 24px 16px 48px;
+      }
+      .article-card {
+        padding: 22px 18px;
+      }
+      .header-title {
+        font-size: 20px;
+      }
+      .article-title {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- ── Header ── -->
+    <div class="header">
+      <div class="header-date">2026年4月7日（月）</div>
+      <div class="header-title">📋 AI活用ニュースレポート</div>
+      <div class="header-subtitle">今回のピックアップ：2件</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ── Article 1 ── -->
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="badge-importance badge-high">重要度：高</span>
+        <span class="article-source">日経クロステック｜2026年4月5日</span>
+      </div>
+
+      <h2 class="article-title">中小製造業がChatGPTで日報を自動要約、月40時間の工数削減に成功</h2>
+
+      <div class="section-label">要約</div>
+      <p class="article-summary">
+        愛知県の従業員50名規模の製造業が、現場作業者の日報をChatGPT APIで自動要約する仕組みを導入した事例。
+        これまで管理職が毎日1時間かけて読んでいた日報を、AIが要点を3行に整理して共有チャットに投稿する仕組みに変更。
+        導入コストはAPI費用のみで月額約3,000円。現場のITリテラシーが低い環境でも、入力はこれまで通りの日報フォーマットのまま、
+        裏側だけAIが処理する設計にしたことが成功の鍵だった。
+        管理職の日報確認時間が月40時間削減され、その時間を現場改善の巡回に充てられるようになったと報告されている。
+      </p>
+
+      <div class="hint-box">
+        <div class="hint-label">💡 研修への活用ヒント</div>
+        <p class="hint-text">
+          この事例は島塚さんの研修の「導入編」で使える鉄板ネタになる。
+          ポイントは「現場の入力方法を変えずに裏側だけAIを入れた」という設計思想。
+          研修の受講企業は「うちの社員はITに弱いから…」と必ず言うので、
+          この事例を見せて「社員のやり方は変えなくていい。変えるのは裏側だけ」と伝えれば、導入ハードルへの不安を解消できる。
+          研修のワークとして「自社の日報を3行に要約するプロンプトを書いてみよう」という実践演習にも展開しやすい。
+          月額3,000円・月40時間削減という数字もROIの説得材料としてそのまま使える。
+        </p>
+      </div>
+
+      <a class="article-link" href="#">元記事を読む</a>
+    </div>
+
+    <!-- ── Article 2 ── -->
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="badge-importance badge-mid">重要度：中</span>
+        <span class="article-source">ITmedia｜2026年4月4日</span>
+      </div>
+
+      <h2 class="article-title">Google、Gemini 2.5の日本語性能を大幅強化。ビジネス文書の生成精度が向上</h2>
+
+      <div class="section-label">要約</div>
+      <p class="article-summary">
+        Googleが Gemini 2.5のアップデートを発表し、特に日本語のビジネス文書生成における精度が大幅に向上した。
+        契約書の要約、議事録の構造化、報告書のドラフト生成において、従来比で誤訳率が60%減少したとされている。
+        Google Workspaceとの統合も強化され、Googleドキュメント上で直接Geminiを呼び出して文書の校正・要約ができるようになった。
+        Workspace Business Standardプラン以上で追加料金なしで利用可能。
+        日本市場を意識したアップデートで、今後はスプレッドシートの関数提案機能も追加予定。
+      </p>
+
+      <div class="hint-box">
+        <div class="hint-label">💡 研修への活用ヒント</div>
+        <p class="hint-text">
+          Google Workspaceを導入済みの中小企業は多いので、追加コストゼロで始められるAI活用として研修で紹介しやすい。
+          「すでに契約しているツールの中にAIが入っている」という切り口は、新しいツール導入に抵抗がある企業への刺さりが強い。
+          研修では「今お使いのGoogleドキュメントを開いてください」から始めて、その場で体験させるワークが組める。
+          ChatGPTとの比較表を作って「自社に合うのはどちらか」を議論させるグループワークにも使える。
+          ただしGeminiの日本語精度は実際に手元で検証してから研修に組み込むこと。公式発表の数字が現場感と合うか確認が必要。
+        </p>
+      </div>
+
+      <a class="article-link" href="#">元記事を読む</a>
+    </div>
+
+    <!-- ── Footer ── -->
+    <div class="footer">
+      <p>ソース：Google News RSS ／ AI分析による自動生成レポート</p>
+    </div>
+
+  </div>
+</body>
+</html>
