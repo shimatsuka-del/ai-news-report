@@ -2,6 +2,7 @@
 """
 AI News Report Generator
 Google News RSS から記事を取得し、Gemini API で処理して HTML レポートを生成する。
+直近7日以内の新着がない場合は AI活用Tips を生成してレポートに差し替える。
 """
 
 import html
@@ -33,6 +34,7 @@ KEYWORDS = [
 
 MAX_ARTICLES = 2
 MAX_SEEN = 60
+RECENT_DAYS = 7
 MODEL = "gemini-2.5-flash"
 
 WEEKDAY_JA = ["月", "火", "水", "木", "金", "土", "日"]
@@ -89,18 +91,21 @@ def fetch_rss(keyword: str) -> list[dict]:
     feed = feedparser.parse(url)
     articles = []
     for entry in feed.entries:
+        published_dt = None
         published_str = ""
         if getattr(entry, "published_parsed", None):
-            dt = datetime(
+            published_dt = datetime(
                 *entry.published_parsed[:6], tzinfo=timezone.utc
-            ).astimezone(JST)
-            published_str = f"{dt.year}年{dt.month}月{dt.day}日"
+            )
+            jst_dt = published_dt.astimezone(JST)
+            published_str = f"{jst_dt.year}年{jst_dt.month}月{jst_dt.day}日"
 
         articles.append({
             "title": strip_html(entry.get("title", "")),
             "url": entry.get("link", ""),
             "source": entry.get("source", {}).get("title", "不明"),
             "published": published_str,
+            "published_dt": published_dt,
             "description": strip_html(entry.get("summary", "")),
         })
     return articles
@@ -120,6 +125,17 @@ def fetch_all_articles() -> list[dict]:
         except Exception as e:
             print(f"[warn] '{keyword}' の RSS 取得に失敗: {e}", file=sys.stderr)
     return all_articles
+
+
+def filter_recent_articles(articles: list[dict], days: int = RECENT_DAYS) -> list[dict]:
+    """公開日が直近 days 日以内の記事のみを返す。日付不明の記事は含める。"""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    result = []
+    for a in articles:
+        dt = a.get("published_dt")
+        if dt is None or dt >= cutoff:
+            result.append(a)
+    return result
 
 
 # ── Gemini API ────────────────────────────────────────────────────────────────
@@ -220,15 +236,51 @@ def process_article(client: genai.Client, article: dict) -> dict | None:
     }
 
 
+def generate_tips(client: genai.Client) -> dict | None:
+    """直近の新着記事がない場合の代替として、AI活用 Tips を1件生成する。"""
+    prompt = """岐阜県の中小企業向けにAI活用研修を提供している講師が、研修で受講者にすぐ使ってもらえるプロンプトTipsを1つ考えてください。
+業務でよくある場面（議事録・日報・メール・企画書・問い合わせ対応など）に関連するものが望ましいです。
+
+以下の JSON 形式のみで回答してください（説明不要）：
+{
+  "title": "Tips のタイトル（例：「議事録を30秒で整理するプロンプト術」）",
+  "tips_content": "Tipsの内容（5〜8行相当）。具体的なプロンプト例・使い方のポイント・応用場面を含めること。句点（。）で区切り、自然な日本語で書くこと。",
+  "training_hint": "この Tips を研修でどう活用するか（5〜8行相当）。受講者への伝え方・演習のアイデア・受講企業が得られる効果を含めること。句点（。）で区切り、自然な日本語で書くこと。"
+}"""
+
+    result = call_gemini_json(client, prompt)
+    if not result or not all(k in result for k in ("title", "tips_content", "training_hint")):
+        return None
+
+    now = datetime.now(JST)
+    return {
+        "title": result["title"],
+        "source": "今週のAI活用Tips",
+        "published": f"{now.year}年{now.month}月{now.day}日",
+        "url": "",
+        "importance_label": "💡 Tips",
+        "importance_class": "badge-tips",
+        "section_label": "内容",
+        "summary": result["tips_content"],
+        "hint": result["training_hint"],
+    }
+
+
 # ── HTML 生成 ─────────────────────────────────────────────────────────────────
 
-def render_html(articles_data: list[dict], report_date: str) -> str:
+def render_html(
+    articles_data: list[dict], report_date: str, is_tips_mode: bool = False
+) -> str:
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATE_DIR)),
         autoescape=True,
     )
     template = env.get_template("report-template.html")
-    return template.render(report_date=report_date, articles=articles_data)
+    return template.render(
+        report_date=report_date,
+        articles=articles_data,
+        is_tips_mode=is_tips_mode,
+    )
 
 
 # ── メイン処理 ────────────────────────────────────────────────────────────────
@@ -248,61 +300,89 @@ def main() -> None:
     # ② RSS 取得
     print("RSS フィードを取得中...")
     all_articles = fetch_all_articles()
-    new_articles = [a for a in all_articles if a["url"] not in seen_set]
-    print(f"合計 {len(all_articles)} 件取得、うち新規 {len(new_articles)} 件。")
 
-    if not new_articles:
-        print("新規記事なし。レポート生成をスキップします。")
-        write_github_output(has_articles="false")
-        sys.exit(0)
+    # ③ 直近 RECENT_DAYS 日以内の記事に絞る
+    recent_articles = filter_recent_articles(all_articles)
+    print(
+        f"合計 {len(all_articles)} 件取得、"
+        f"うち直近{RECENT_DAYS}日以内 {len(recent_articles)} 件。"
+    )
 
-    # ③ Gemini クライアント初期化
+    # ④ 重複除外
+    new_articles = [a for a in recent_articles if a["url"] not in seen_set]
+    print(f"うち新規（未取得） {len(new_articles)} 件。")
+
+    # ⑤ Gemini クライアント初期化
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-    # ④ 記事を選定
-    print("Gemini で記事を選定中...")
-    selected_indices = select_articles(client, new_articles)
-    selected = [new_articles[i] for i in selected_indices]
-    print(f"{len(selected)} 件を選定しました。")
-
-    # ⑤ 各記事を処理（要約・活用ヒント・重要度生成）
+    is_tips_mode = False
     processed: list[dict] = []
-    for art in selected:
-        print(f"処理中: {art['title'][:60]}...")
-        result = process_article(client, art)
-        if result:
-            processed.append({
-                "title": art["title"],
-                "source": art["source"],
-                "published": art["published"],
-                "url": art["url"],
-                "importance_label": "重要度：高" if result["importance"] == "high" else "重要度：中",
-                "importance_class": "badge-high" if result["importance"] == "high" else "badge-mid",
-                "summary": result["summary"],
-                "hint": result["hint"],
-            })
-        else:
-            print(f"[warn] 記事の処理に失敗しました: {art['title'][:40]}", file=sys.stderr)
+    selected: list[dict] = []
 
-    if not processed:
-        print("すべての記事処理が失敗しました。レポート生成をスキップします。")
-        write_github_output(has_articles="false")
-        sys.exit(0)
+    if not new_articles:
+        # 直近の新着なし → Tips を生成
+        print(f"直近{RECENT_DAYS}日の新着記事なし。今週のAI活用Tips を生成します...")
+        is_tips_mode = True
+        tips = generate_tips(client)
+        if not tips:
+            print("Tips 生成に失敗。レポート生成をスキップします。")
+            write_github_output(has_articles="false")
+            sys.exit(0)
+        processed = [tips]
+    else:
+        # ⑥ 記事を選定
+        print("Gemini で記事を選定中...")
+        selected_indices = select_articles(client, new_articles)
+        selected = [new_articles[i] for i in selected_indices]
+        print(f"{len(selected)} 件を選定しました。")
 
-    # ⑥ HTML 生成
+        # ⑦ 各記事を処理（要約・活用ヒント・重要度生成）
+        for art in selected:
+            print(f"処理中: {art['title'][:60]}...")
+            result = process_article(client, art)
+            if result:
+                processed.append({
+                    "title": art["title"],
+                    "source": art["source"],
+                    "published": art["published"],
+                    "url": art["url"],
+                    "importance_label": "重要度：高" if result["importance"] == "high" else "重要度：中",
+                    "importance_class": "badge-high" if result["importance"] == "high" else "badge-mid",
+                    "section_label": "要約",
+                    "summary": result["summary"],
+                    "hint": result["hint"],
+                })
+            else:
+                print(f"[warn] 記事の処理に失敗: {art['title'][:40]}", file=sys.stderr)
+
+        if not processed:
+            # すべての処理が失敗 → Tips にフォールバック
+            print("記事処理がすべて失敗。今週のAI活用Tips にフォールバックします...")
+            is_tips_mode = True
+            tips = generate_tips(client)
+            if not tips:
+                print("Tips 生成にも失敗。レポート生成をスキップします。")
+                write_github_output(has_articles="false")
+                sys.exit(0)
+            processed = [tips]
+
+    # ⑧ HTML 生成
     print("HTML を生成中...")
-    html_content = render_html(processed, report_date)
+    html_content = render_html(processed, report_date, is_tips_mode)
     DIST_DIR.mkdir(exist_ok=True)
     output_path = DIST_DIR / "index.html"
     output_path.write_text(html_content, encoding="utf-8")
     print(f"HTML を書き出しました: {output_path}")
 
-    # ⑦ 取得済み URL を更新
-    new_urls = [a["url"] for a in selected]
-    save_seen(seen + new_urls)
-    print(f"seen_articles.json を更新しました（{len(seen) + len(new_urls)} 件）。")
+    # ⑨ 取得済み URL を更新（Tips モードの場合は更新しない）
+    if not is_tips_mode and selected:
+        new_urls = [a["url"] for a in selected]
+        save_seen(seen + new_urls)
+        print(f"seen_articles.json を更新しました（{len(seen) + len(new_urls)} 件）。")
+    elif is_tips_mode:
+        print("Tips モードのため seen_articles.json の更新をスキップします。")
 
-    # ⑧ GitHub Actions 向け出力変数
+    # ⑩ GitHub Actions 向け出力変数
     write_github_output(
         has_articles="true",
         surge_domain=surge_domain,

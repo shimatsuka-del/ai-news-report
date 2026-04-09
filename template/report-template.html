@@ -111,6 +111,11 @@
       background: var(--importance-mid-bg);
     }
 
+    .badge-tips {
+      color: #0284C7;
+      background: #E0F2FE;
+    }
+
     .article-source {
       font-size: 12px;
       color: var(--text-muted);
@@ -219,7 +224,7 @@
     <div class="header">
       <div class="header-date">{{ report_date }}</div>
       <div class="header-title">📋 AI活用ニュースレポート</div>
-      <div class="header-subtitle">今回のピックアップ：{{ articles|length }}件</div>
+      <div class="header-subtitle">{% if is_tips_mode %}今週のAI活用Tips{% else %}今回のピックアップ：{{ articles|length }}件{% endif %}</div>
     </div>
 
     <hr class="divider">
@@ -234,7 +239,7 @@
 
       <h2 class="article-title">{{ article.title }}</h2>
 
-      <div class="section-label">要約</div>
+      <div class="section-label">{{ article.section_label }}</div>
       <p class="article-summary">{{ article.summary }}</p>
 
       <div class="hint-box">
@@ -242,7 +247,7 @@
         <p class="hint-text">{{ article.hint }}</p>
       </div>
 
-      <a class="article-link" href="{{ article.url }}" target="_blank" rel="noopener noreferrer">元記事を読む</a>
+      {% if article.url %}<a class="article-link" href="{{ article.url }}" target="_blank" rel="noopener noreferrer">元記事を読む</a>{% endif %}
     </div>
     {% endfor %}
 
